@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"strconv"
@@ -22,7 +21,7 @@ func main() {
 	for {
 		err := CLIGenerate()
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("%v\n", errors.Unwrap(err))
 		}
 		fmt.Println("########################################################")
 	}
