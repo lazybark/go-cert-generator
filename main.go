@@ -21,7 +21,7 @@ func main() {
 	for {
 		err := CLIGenerate()
 		if err != nil {
-			fmt.Printf("%v\n", errors.Unwrap(err))
+			fmt.Printf("%v\n", err)
 		}
 		fmt.Println("########################################################")
 	}
@@ -44,7 +44,7 @@ func CLIGenerate() error {
 	scanner.Scan()
 	lifetime, err := strconv.Atoi(scanner.Text())
 	if err != nil {
-		return fmt.Errorf("[CLIGenerate] failed convert days number: %w", err)
+		return fmt.Errorf("[CLIGenerate] failed convert days number -> %w", err)
 	}
 	// Key usage
 	fmt.Printf("External key usage, e.g. '1,2,3' (%v=any, %v=server, %v=client, %v=code sign,, %v=email protection, %v=IPSECEndSystem, %v=IPSECTunnel, %v=IPSECUser, %v=time stamping, %v=OCSP signing, %v=MicrosoftServerGatedCrypto, %v=NetscapeServerGatedCrypto, %v=MicrosoftCommercialCodeSigning, %v=MicrosoftKernelCodeSigning)-> ",
@@ -62,7 +62,7 @@ func CLIGenerate() error {
 	for _, v := range usageArray {
 		conv, err := strconv.Atoi(v)
 		if err != nil {
-			return fmt.Errorf("[CLIGenerate] failed convert usage: %w", err)
+			return fmt.Errorf("[CLIGenerate] failed convert usage -> %w", err)
 		}
 		usageArrayInt = append(usageArrayInt, conv)
 	}
@@ -93,13 +93,13 @@ func CLIGenerate() error {
 func Generator(keyPath string, certPath string, orgName string, host string, lifetime int, usageArrayX509 []x509.ExtKeyUsage) error {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return fmt.Errorf("[Generator] failed to generate private key: %w", err)
+		return fmt.Errorf("[Generator] failed to generate private key -> %w", err)
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return fmt.Errorf("[Generator] failed to generate serial number: %w", err)
+		return fmt.Errorf("[Generator] failed to generate serial number -> %w", err)
 	}
 
 	template := x509.Certificate{
@@ -118,7 +118,7 @@ func Generator(keyPath string, certPath string, orgName string, host string, lif
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
 	if err != nil {
-		return fmt.Errorf("[Generator] failed to create certificate: %w", err)
+		return fmt.Errorf("[Generator] failed to create certificate -> %w", err)
 	}
 
 	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
@@ -131,7 +131,7 @@ func Generator(keyPath string, certPath string, orgName string, host string, lif
 
 	privBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
-		return fmt.Errorf("[Generator] unable to marshal private key: %w", err)
+		return fmt.Errorf("[Generator] unable to marshal private key -> %w", err)
 	}
 	pemKey := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privBytes})
 	if pemKey == nil {
