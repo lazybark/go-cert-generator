@@ -19,11 +19,13 @@ import (
 )
 
 func main() {
-	err := CLIGenerate()
-	if err != nil {
-		log.Fatal(err)
+	for {
+		err := CLIGenerate()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("########################################################")
 	}
-
 }
 
 func CLIGenerate() error {
