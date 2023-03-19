@@ -36,7 +36,7 @@ func CLIGenerate() error {
 	scanner.Scan()
 	orgName := scanner.Text()
 	// Host
-	fmt.Print("Host -> ")
+	fmt.Print("Host ('localhost' if empty) -> ")
 	scanner.Scan()
 	host := scanner.Text()
 	// Lifetime
@@ -73,10 +73,10 @@ func CLIGenerate() error {
 	}
 
 	// Path
-	fmt.Print("Certificate path -> ")
+	fmt.Print("Certificate path ('cert.pem' if empty) -> ")
 	scanner.Scan()
 	certPath := scanner.Text()
-	fmt.Print("Key path -> ")
+	fmt.Print("Key path ('key.pem' if empty) -> ")
 	scanner.Scan()
 	keyPath := scanner.Text()
 
@@ -91,6 +91,16 @@ func CLIGenerate() error {
 }
 
 func Generator(keyPath string, certPath string, orgName string, host string, lifetime int, usageArrayX509 []x509.ExtKeyUsage) error {
+	if keyPath == "" {
+		keyPath = "key"
+	}
+	if certPath == "" {
+		certPath = "cert"
+	}
+	if host == "" {
+		host = "localhost"
+	}
+
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("[Generator] failed to generate private key -> %w", err)
@@ -107,10 +117,9 @@ func Generator(keyPath string, certPath string, orgName string, host string, lif
 		Subject: pkix.Name{
 			Organization: []string{orgName},
 		},
-		DNSNames:  []string{host},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now().AddDate(0, 0, lifetime),
-
+		DNSNames:              []string{host},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(0, 0, lifetime),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           usageArrayX509,
 		BasicConstraintsValid: true,
@@ -142,5 +151,4 @@ func Generator(keyPath string, certPath string, orgName string, host string, lif
 	}
 
 	return nil
-
 }
