@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -69,6 +70,19 @@ func CLIGenerate() error {
 		usageArrayX509 = append(usageArrayX509, x509.ExtKeyUsage(v))
 	}
 
+	// Addresses
+	fmt.Print("Enter IP addresses, e.g. '192.168.0.1,127.0.0.1' -> ")
+	scanner.Scan()
+	addrs := scanner.Text()
+
+	// Convert strings into ints
+	addrsArray := strings.Split(addrs, ",")
+	var addrsArrayIPs []net.IP
+	for _, v := range addrsArray {
+		conv := net.ParseIP(v)
+		addrsArrayIPs = append(addrsArrayIPs, conv)
+	}
+
 	// Path
 	fmt.Print("Certificate path ('cert.pem' if empty) -> ")
 	scanner.Scan()
@@ -84,7 +98,7 @@ func CLIGenerate() error {
 		keyPath = "key"
 	}
 
-	err = gen.Generator(keyPath, certPath, orgName, host, lifetime, usageArrayX509)
+	err = gen.Generator(keyPath, certPath, orgName, host, addrsArrayIPs, lifetime, usageArrayX509)
 	if err != nil {
 		return err
 	}

@@ -10,11 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
 	"os"
 	"time"
 )
 
-func Generator(keyPath string, certPath string, orgName string, host string, lifetime int, usageArrayX509 []x509.ExtKeyUsage) error {
+func Generator(keyPath string, certPath string, orgName string, host string, addresses []net.IP, lifetime int, usageArrayX509 []x509.ExtKeyUsage) error {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("[Generator] failed to generate private key -> %w", err)
@@ -32,6 +33,7 @@ func Generator(keyPath string, certPath string, orgName string, host string, lif
 			Organization: []string{orgName},
 		},
 		DNSNames:              []string{host},
+		IPAddresses:           addresses,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(0, 0, lifetime),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
