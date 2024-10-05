@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/x509"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -14,96 +15,114 @@ import (
 
 func main() {
 	for {
-		err := CLIGenerate()
-		if err != nil {
-			fmt.Printf("%v\n", err)
+		if err := CLIGenerate(); err != nil {
+			log.Printf("%v\n", err)
 		}
-		fmt.Println("########################################################")
+
+		log.Println("########################################################")
 	}
 }
 
 func CLIGenerate() error {
-	// Provide user data
 	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println("Provide cert data:")
-	// Org
-	fmt.Print("Org -> ")
-	scanner.Scan()
-	orgName := scanner.Text()
-	// Host
-	fmt.Print("Host ('localhost' if empty) -> ")
-	scanner.Scan()
-	host := scanner.Text()
+
+	orgName := prompt(scanner, "Org -> ")
+	host := prompt(scanner, "Host ('localhost' if empty) -> ")
 	if host == "" {
 		host = "localhost"
 	}
-	// Lifetime
-	fmt.Print("Lifetime (days) -> ")
-	scanner.Scan()
-	lifetime, err := strconv.Atoi(scanner.Text())
+
+	lifetime, err := promptInt(scanner, "Lifetime (days) -> ")
 	if err != nil {
-		return fmt.Errorf("[CLIGenerate] failed convert days number -> %w", err)
+		return fmt.Errorf("[CLIGenerate] failed to convert days number -> %w", err)
 	}
-	// Key usage
-	fmt.Printf("External key usage, e.g. '1,2,3' (%v=any, %v=server, %v=client, %v=code sign,, %v=email protection, %v=IPSECEndSystem, %v=IPSECTunnel, %v=IPSECUser, %v=time stamping, %v=OCSP signing, %v=MicrosoftServerGatedCrypto, %v=NetscapeServerGatedCrypto, %v=MicrosoftCommercialCodeSigning, %v=MicrosoftKernelCodeSigning)-> ",
+
+	usageArrayX509, err := promptKeyUsages(scanner)
+	if err != nil {
+		return fmt.Errorf("[CLIGenerate] %w", err)
+	}
+
+	addrsArrayIPs, err := promptIPAddresses(scanner)
+	if err != nil {
+		return fmt.Errorf("[CLIGenerate] %w", err)
+	}
+
+	certPath := prompt(scanner, fmt.Sprintf("Certificate path ('%s' if empty) -> ", gen.GetDefaultCertPath()))
+	if certPath == "" {
+		certPath = gen.GetDefaultCertPath()
+	}
+
+	keyPath := prompt(scanner, fmt.Sprintf("Key path ('%s' if empty) -> ", gen.GetDefaultKeyPath()))
+	if keyPath == "" {
+		keyPath = gen.GetDefaultKeyPath()
+	}
+
+	err = gen.Generator(keyPath, certPath, orgName, host, addrsArrayIPs, lifetime, usageArrayX509)
+	if err != nil {
+		return fmt.Errorf("[CLIGenerate] failed to generate certificate -> %w", err)
+	}
+
+	fmt.Printf("Generated certificate: %s\n", certPath)
+	fmt.Printf("Generated private key: %s\n", keyPath)
+
+	return nil
+}
+
+func prompt(scanner *bufio.Scanner, message string) string {
+	fmt.Print(message)
+	scanner.Scan()
+
+	return scanner.Text()
+}
+
+func promptInt(scanner *bufio.Scanner, message string) (int, error) {
+	fmt.Print(message)
+	scanner.Scan()
+
+	return strconv.Atoi(scanner.Text())
+}
+
+func promptKeyUsages(scanner *bufio.Scanner) ([]x509.ExtKeyUsage, error) {
+	fmt.Printf("External key usage, e.g. '1,2,3' (%v=any, %v=server, %v=client, %v=code sign, %v=email protection, %v=IPSECEndSystem, %v=IPSECTunnel, %v=IPSECUser, %v=time stamping, %v=OCSP signing, %v=MicrosoftServerGatedCrypto, %v=NetscapeServerGatedCrypto, %v=MicrosoftCommercialCodeSigning, %v=MicrosoftKernelCodeSigning) -> ",
 		x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth,
 		x509.ExtKeyUsageCodeSigning, x509.ExtKeyUsageEmailProtection, x509.ExtKeyUsageIPSECEndSystem,
 		x509.ExtKeyUsageIPSECTunnel, x509.ExtKeyUsageIPSECUser, x509.ExtKeyUsageTimeStamping,
 		x509.ExtKeyUsageOCSPSigning, x509.ExtKeyUsageMicrosoftServerGatedCrypto, x509.ExtKeyUsageNetscapeServerGatedCrypto,
 		x509.ExtKeyUsageMicrosoftCommercialCodeSigning, x509.ExtKeyUsageMicrosoftKernelCodeSigning)
 	scanner.Scan()
-	usage := scanner.Text()
 
-	// Convert strings into ints
-	usageArray := strings.Split(usage, ",")
-	var usageArrayInt []int
+	usageArray := strings.Split(scanner.Text(), ",")
+
+	var usageArrayX509 []x509.ExtKeyUsage
+
 	for _, v := range usageArray {
 		conv, err := strconv.Atoi(v)
 		if err != nil {
-			return fmt.Errorf("[CLIGenerate] failed convert usage -> %w", err)
+			return nil, fmt.Errorf("failed to convert usage -> %w", err)
 		}
-		usageArrayInt = append(usageArrayInt, conv)
-	}
-	// Make proper usages
-	var usageArrayX509 []x509.ExtKeyUsage
-	for _, v := range usageArrayInt {
-		usageArrayX509 = append(usageArrayX509, x509.ExtKeyUsage(v))
+
+		usageArrayX509 = append(usageArrayX509, x509.ExtKeyUsage(conv))
 	}
 
-	// Addresses
+	return usageArrayX509, nil
+}
+
+func promptIPAddresses(scanner *bufio.Scanner) ([]net.IP, error) {
 	fmt.Print("Enter IP addresses, e.g. '192.168.0.1,127.0.0.1' -> ")
 	scanner.Scan()
-	addrs := scanner.Text()
 
-	// Convert strings into ints
-	addrsArray := strings.Split(addrs, ",")
+	addrsArray := strings.Split(scanner.Text(), ",")
+
 	var addrsArrayIPs []net.IP
+
 	for _, v := range addrsArray {
 		conv := net.ParseIP(v)
+		if conv == nil {
+			return nil, fmt.Errorf("invalid IP address: %s", v)
+		}
+
 		addrsArrayIPs = append(addrsArrayIPs, conv)
 	}
 
-	// Path
-	fmt.Print("Certificate path ('cert.pem' if empty) -> ")
-	scanner.Scan()
-	certPath := scanner.Text()
-	if certPath == "" {
-		certPath = "cert"
-	}
-
-	fmt.Print("Key path ('key.pem' if empty) -> ")
-	scanner.Scan()
-	keyPath := scanner.Text()
-	if keyPath == "" {
-		keyPath = "key"
-	}
-
-	err = gen.Generator(keyPath, certPath, orgName, host, addrsArrayIPs, lifetime, usageArrayX509)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Generated certificate: %s.pem\n", certPath)
-	fmt.Printf("Generated private key: %s.pem\n", keyPath)
-
-	return nil
+	return addrsArrayIPs, nil
 }
